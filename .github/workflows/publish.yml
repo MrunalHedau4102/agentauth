@@ -1,0 +1,84 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+    
+    - name: Run tests
+      run: pytest tests/ -v
+    
+    - name: Check versions match
+      run: |
+        VERSION=$(grep '__version__' agentauth/__init__.py | sed "s/__version__ = '\(.*\)'/\1/")
+        PYPROJECT=$(grep 'version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        if [ "$VERSION" != "$PYPROJECT" ]; then
+          echo "Version mismatch: __init__.py=$VERSION, pyproject.toml=$PYPROJECT"
+          exit 1
+        fi
+
+  build-and-publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine wheel
+    
+    - name: Build distributions
+      run: |
+        python -m build
+    
+    - name: Check package integrity
+      run: |
+        twine check dist/*
+    
+    - name: Publish to PyPI (test)
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+      if: github.event_name == 'workflow_dispatch'
+      continue-on-error: true
+    
+    - name: Publish to PyPI (production)
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+      if: github.event_name == 'release'
+    
+    - name: Create GitHub Release Assets
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
