@@ -164,6 +164,7 @@ class AuditLogModel(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    timestamp_str = Column(String(30), nullable=False)  # ISO format string used for hashing
     ip_address = Column(String(45), nullable=True)
     scopes_involved = Column(JSON, nullable=True)
     outcome = Column(String(20), nullable=False)  # success | failure

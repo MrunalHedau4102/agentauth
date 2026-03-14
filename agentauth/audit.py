@@ -70,6 +70,7 @@ class AuditLogger:
         """
         event_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
+        timestamp_str = now.isoformat()
 
         # Get the hash of the previous entry
         previous_hash = self._get_last_hash()
@@ -80,7 +81,7 @@ class AuditLogger:
             event_type=event_type,
             agent_id=agent_id,
             user_id=user_id,
-            timestamp=now.isoformat(),
+            timestamp=timestamp_str,
             ip_address=ip_address,
             scopes=scopes,
             outcome=outcome,
@@ -95,6 +96,7 @@ class AuditLogger:
             agent_id=agent_id,
             user_id=user_id,
             timestamp=now,
+            timestamp_str=timestamp_str,
             ip_address=ip_address,
             scopes_involved=scopes,
             outcome=outcome,
@@ -136,13 +138,13 @@ class AuditLogger:
                     f"Previous hash mismatch at event {entry.event_id}"
                 )
 
-            # Recompute the entry hash
+            # Recompute the entry hash using the stored timestamp string
             expected_content = self._build_hash_content(
                 event_id=entry.event_id,
                 event_type=entry.event_type,
                 agent_id=entry.agent_id,
                 user_id=entry.user_id,
-                timestamp=entry.timestamp.isoformat(),
+                timestamp=entry.timestamp_str,
                 ip_address=entry.ip_address,
                 scopes=entry.scopes_involved,
                 outcome=entry.outcome,

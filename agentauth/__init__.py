@@ -41,6 +41,17 @@ from agentauth.audit import AuditLogger
 # Guard
 from agentauth.guard import PromptInjectionGuard
 
+# LLM Provider Support
+from agentauth.llm import (
+    LLMProvider,
+    OpenAIProvider,
+    GrokProvider,
+    GroqProvider,
+    ClaudeProvider,
+    GeminiProvider,
+    OllamaProvider,
+)
+
 __all__ = [
     # Exceptions
     "AgentAuthError",
@@ -68,4 +79,12 @@ __all__ = [
     "AuditLogger",
     # Guard
     "PromptInjectionGuard",
+    # LLM Providers
+    "LLMProvider",
+    "OpenAIProvider",
+    "GrokProvider",
+    "GroqProvider",
+    "ClaudeProvider",
+    "GeminiProvider",
+    "OllamaProvider",
 ]
