@@ -1,10 +1,12 @@
 """
-Example 1: Basic Setup
-======================
-Demonstrates agent registration, token issuance, and basic verification.
+Example 1 — Basic Setup
+========================
+Register an agent, issue a token, verify it, and log audit events.
+
+Run:
+    python -m examples.basic_setup
 """
 
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -15,135 +17,111 @@ from agentauth import (
     AuditLogger,
 )
 from agentauth.db import Base
+from agentauth.exceptions import TokenExpiredError
 
 
 def main():
-    # ============================================================
-    # 1. Setup Database
-    # ============================================================
+    # ── 1. Database setup ───────────────────────────────────────────────
     engine = create_engine("sqlite:///:memory:", echo=False)
     Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()
+    print("✅ Database initialised\n")
 
-    print("✅ Database initialized\n")
-
-    # ============================================================
-    # 2. Create and Register an Agent
-    # ============================================================
-    print("📋 Registering agent...")
-    
-    agent = AgentIdentity(
-        agent_id="agent-gpt4-001",
-        display_name="GPT-4 Assistant",
-        owner="OpenAI",
-        scopes_requested=["knowledge:search", "tools:execute"]
-    )
-
-    # Generate cryptographic key pair
+    # ── 2. Generate cryptographic key pair ──────────────────────────────
     private_key, public_key = AgentIdentity.generate_keypair("ed25519")
-    agent.public_key = public_key
-    agent.private_key = private_key
+    print(f"🔑 Ed25519 key pair generated")
+    print(f"   Public key (first 60 chars): {public_key[:60]}...\n")
+
+    # ── 3. Create and register agent ────────────────────────────────────
+    agent = AgentIdentity(
+        agent_id="gpt4-assistant-001",
+        display_name="GPT-4 Assistant",
+        owner="my-company",
+        public_key=public_key,
+        private_key=private_key,
+        scopes_requested=["db:read", "email:send"],
+    )
 
     registry = AgentRegistry(session)
     registered = registry.register_agent(agent)
-    
-    print(f"  Agent ID: {registered['agent_id']}")
-    print(f"  Trust Level: {registered['trust_level']}")
-    print(f"  Owner: {registered['owner']}\n")
 
-    # ============================================================
-    # 3. Issue an Ephemeral Token
-    # ============================================================
-    print("🔐 Issuing ephemeral token...")
-    
+    print(f"📋 Agent registered")
+    print(f"   agent_id    : {registered['agent_id']}")
+    print(f"   trust_level : {registered['trust_level']}")
+    print(f"   owner       : {registered['owner']}")
+    print(f"   is_revoked  : {registered['is_revoked']}\n")
+
+    # ── 4. Elevate trust level ──────────────────────────────────────────
+    updated = registry.trust_agent("gpt4-assistant-001", "verified")
+    print(f"⭐ Trust level updated → {updated['trust_level']}\n")
+
+    # ── 5. Issue ephemeral token ────────────────────────────────────────
     vault = EphemeralTokenVault(
-        secret_key="test-secret-key-min-32-chars-long-1234567890",
-        session=session
+        secret_key="my-production-secret-key-min-32-chars",
+        session=session,
     )
 
     token = vault.issue(
-        agent_id="agent-gpt4-001",
-        scopes=["knowledge:search", "tools:execute"],
-        ttl_seconds=300,  # 5 minutes
-        trust_level="high"
+        agent_id="gpt4-assistant-001",
+        scopes=["db:read", "email:send"],
+        ttl_seconds=300,
+        trust_level="high",
     )
 
-    print(f"  Token (first 30 chars): {token[:30]}...")
-    print(f"  TTL: 300 seconds (5 minutes)")
-    print(f"  Scopes: knowledge:search, tools:execute\n")
+    print(f"🔐 Token issued")
+    print(f"   First 40 chars : {token[:40]}...")
+    print(f"   TTL            : 300 seconds\n")
 
-    # ============================================================
-    # 4. Verify Token
-    # ============================================================
-    print("✔️  Verifying token...")
-    
+    # ── 6. Verify token ─────────────────────────────────────────────────
+    payload = vault.verify(token)
+    print(f"✔️  Token verified")
+    print(f"   agent_id    : {payload['agent_id']}")
+    print(f"   scopes      : {payload['scopes']}")
+    print(f"   trust_level : {payload['trust_level']}\n")
+
+    # ── 7. Issue one-time-use token ─────────────────────────────────────
+    ott = vault.issue(
+        agent_id="gpt4-assistant-001",
+        scopes=["db:read"],
+        ttl_seconds=60,
+        one_time_use=True,
+    )
+    vault.verify(ott)   # first use — succeeds
+    print(f"🔂 One-time token: first use ✅")
+
+    from agentauth.exceptions import InvalidTokenError
     try:
-        payload = vault.verify(token)
-        print(f"  Agent ID: {payload['agent_id']}")
-        print(f"  Scopes: {payload['scopes']}")
-        print(f"  Trust Level: {payload['trust_level']}")
-        print(f"  Valid: ✅\n")
-    except Exception as e:
-        print(f"  Error: {e}\n")
+        vault.verify(ott)   # second use — must fail
+    except InvalidTokenError as e:
+        print(f"🔂 One-time token: second use ❌ ({e})\n")
 
-    # ============================================================
-    # 5. Log Audit Events
-    # ============================================================
-    print("📊 Logging audit events...")
-    
+    # ── 8. Audit logging ────────────────────────────────────────────────
     audit = AuditLogger(session)
-    
+
     audit.log(
         event_type="agent_registered",
-        agent_id="agent-gpt4-001",
+        agent_id="gpt4-assistant-001",
         outcome="success",
-        metadata={"algorithm": "ed25519"}
+        metadata={"algorithm": "ed25519"},
     )
-    
     audit.log(
         event_type="token_issued",
-        agent_id="agent-gpt4-001",
+        agent_id="gpt4-assistant-001",
         outcome="success",
-        scopes=["knowledge:search", "tools:execute"],
-        metadata={"ttl": 300}
+        scopes=["db:read", "email:send"],
+        metadata={"ttl": 300},
     )
 
-    print(f"  Events logged: 2\n")
+    events = audit.get_events(agent_id="gpt4-assistant-001")
+    print(f"📊 Audit log ({len(events)} events)")
+    for e in events:
+        print(f"   [{e['event_type']:20s}] {e['outcome']:7s}")
 
-    # ============================================================
-    # 6. Query Audit Events
-    # ============================================================
-    print("📈 Querying audit events...")
-    
-    events = audit.get_events(agent_id="agent-gpt4-001")
-    
-    for event in events:
-        print(f"  [{event['event_type']:20s}] {event['outcome']:7s} - {event['timestamp']}")
+    # ── 9. Chain verification ────────────────────────────────────────────
+    print(f"\n🔗 Chain integrity: {'✅ VALID' if audit.verify_chain() else '❌ CORRUPTED'}")
 
-    # ============================================================
-    # 7. Verify Audit Chain
-    # ============================================================
-    print("\n🔗 Verifying audit chain integrity...")
-    
-    if audit.verify_chain():
-        print("  Chain integrity: ✅ VALID\n")
-    else:
-        print("  Chain integrity: ❌ CORRUPTED\n")
-
-    # ============================================================
-    # 8. Update Agent Trust Level
-    # ============================================================
-    print("⭐ Updating agent trust level...")
-    
-    updated = registry.trust_agent("agent-gpt4-001", "trusted")
-    print(f"  New trust level: {updated['trust_level']}\n")
-
-    # ============================================================
-    # Cleanup
-    # ============================================================
     session.close()
-    print("✅ Example completed successfully!")
+    print("\n✅ basic_setup complete")
 
 
 if __name__ == "__main__":

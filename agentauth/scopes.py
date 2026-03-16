@@ -4,6 +4,7 @@ import contextvars
 import functools
 from typing import Optional, List, Dict, Any, Callable
 
+from sqlalchemy import func, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -286,9 +287,9 @@ def require_scope(
 
             return await func(*args, **kwargs)
 
-        import asyncio
+        import inspect
 
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         return wrapper
 

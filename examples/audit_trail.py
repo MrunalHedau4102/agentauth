@@ -1,7 +1,10 @@
 """
-Example 4: Audit Trail & Chain Verification
-=============================================
-Demonstrates cryptographic audit logging and integrity verification.
+Example 4 — Audit Trail & Chain Verification
+==============================================
+Demonstrates hash-chained tamper-evident logging, querying, and tampering detection.
+
+Run:
+    python -m examples.audit_trail
 """
 
 from datetime import datetime, timezone, timedelta
@@ -10,174 +13,96 @@ from sqlalchemy.orm import sessionmaker
 
 from agentauth import AuditLogger
 from agentauth.db import Base
+from agentauth.db.models import AuditLogModel
 from agentauth.exceptions import AuditChainCorruptedError
 
 
 def main():
-    # ============================================================
-    # 1. Setup Database
-    # ============================================================
+    # ── Setup ────────────────────────────────────────────────────────────
     engine = create_engine("sqlite:///:memory:", echo=False)
     Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
+    session = sessionmaker(bind=engine)()
     audit = AuditLogger(session)
+    print("✅ Database initialised\n")
 
-    print("✅ Database initialized\n")
+    # ── Log a sequence of real-world events ──────────────────────────────
+    print("📝 Logging events...\n")
 
-    # ============================================================
-    # 2. Log Multiple Events
-    # ============================================================
-    print("📝 Logging authentication and authorization events...\n")
-
-    events_to_log = [
-        {
-            "event_type": "agent_registered",
-            "agent_id": "agent-claude-001",
-            "outcome": "success",
-            "metadata": {"algorithm": "ed25519"},
-        },
-        {
-            "event_type": "token_issued",
-            "agent_id": "agent-claude-001",
-            "outcome": "success",
-            "scopes": ["knowledge:search", "tools:execute"],
-            "metadata": {"ttl": 300},
-        },
-        {
-            "event_type": "scope_granted",
-            "agent_id": "agent-claude-001",
-            "outcome": "success",
-            "scopes": ["database:read"],
-            "metadata": {"scope": "database:read", "trust_level": "low"},
-        },
-        {
-            "event_type": "token_used",
-            "agent_id": "agent-claude-001",
-            "outcome": "success",
-            "scopes": ["knowledge:search"],
-            "metadata": {"action": "search_knowledge_base"},
-        },
-        {
-            "event_type": "scope_denied",
-            "agent_id": "agent-claude-001",
-            "outcome": "failure",
-            "metadata": {"reason": "insufficient_trust_level", "scope": "database:delete"},
-        },
+    events = [
+        dict(event_type="agent_registered",  agent_id="agent-gpt4",   outcome="success",
+             metadata={"algorithm": "ed25519"}),
+        dict(event_type="token_issued",      agent_id="agent-gpt4",   outcome="success",
+             scopes=["db:read", "email:send"], metadata={"ttl": 300}),
+        dict(event_type="token_used",        agent_id="agent-gpt4",   outcome="success",
+             scopes=["db:read"], metadata={"action": "list_users"}),
+        dict(event_type="scope_denied",      agent_id="agent-gpt4",   outcome="failure",
+             metadata={"scope": "db:delete", "reason": "trust_level_insufficient"}),
+        dict(event_type="suspicious_activity", agent_id="agent-gpt4", outcome="failure",
+             metadata={"rule": "suspicious_phrase", "field": "query"}),
     ]
 
-    logged_events = []
-    for i, event_data in enumerate(events_to_log):
-        result = audit.log(**event_data)
-        logged_events.append(result)
-        print(f"  [{i+1}] {event_data['event_type']:20s} - {event_data['outcome']}")
+    logged = []
+    for ev in events:
+        result = audit.log(**ev)
+        logged.append(result)
+        print(f"  [{result['event_type']:22s}] {result['outcome']:7s}  "
+              f"hash={result['entry_hash'][:12]}...")
 
-    print()
+    # ── Show chain linkage ────────────────────────────────────────────────
+    print(f"\n🔗 Chain linkage:")
+    print(f"   Entry 1 previous_hash : {logged[0]['previous_hash']} (genesis)")
+    print(f"   Entry 2 previous_hash : {logged[1]['previous_hash'][:16]}...")
+    print(f"   Chain link valid      : {logged[1]['previous_hash'] == logged[0]['entry_hash']} ✅")
 
-    # ============================================================
-    # 3. Display Event Details
-    # ============================================================
-    print("📋 First event details:")
-    first = logged_events[0]
-    print(f"  Event ID:       {first['event_id']}")
-    print(f"  Type:           {first['event_type']}")
-    print(f"  Agent:          {first['agent_id']}")
-    print(f"  Outcome:        {first['outcome']}")
-    print(f"  Entry Hash:     {first['entry_hash'][:16]}...")
-    print(f"  Previous Hash:  {first['previous_hash']}\n")
-
-    print("📋 Second event details:")
-    second = logged_events[1]
-    print(f"  Event ID:       {second['event_id']}")
-    print(f"  Type:           {second['event_type']}")
-    print(f"  Agent:          {second['agent_id']}")
-    print(f"  Entry Hash:     {second['entry_hash'][:16]}...")
-    print(f"  Previous Hash:  {second['previous_hash'][:16]}...")
-    print(f"  Chain valid:    {second['previous_hash'] == first['entry_hash']} ✅\n")
-
-    # ============================================================
-    # 4. Verify Chain Integrity
-    # ============================================================
-    print("🔗 Verifying audit chain integrity...")
-
+    # ── Verify intact chain ───────────────────────────────────────────────
+    print(f"\n🔗 Verifying chain integrity...")
     try:
-        is_valid = audit.verify_chain()
-        if is_valid:
-            print("  Chain status: ✅ VALID\n")
-        else:
-            print("  Chain status: ❌ INVALID\n")
+        audit.verify_chain()
+        print(f"   Status: ✅ VALID\n")
     except AuditChainCorruptedError as e:
-        print(f"  Chain status: ❌ CORRUPTED\n  Error: {e}\n")
+        print(f"   Status: ❌ CORRUPTED — {e}\n")
 
-    # ============================================================
-    # 5. Query Events with Filters
-    # ============================================================
-    print("🔍 Querying events by agent...")
+    # ── Querying ──────────────────────────────────────────────────────────
+    print("🔍 Querying events:")
 
-    events = audit.get_events(agent_id="agent-claude-001")
-    print(f"  Total events for agent-claude-001: {len(events)}\n")
+    all_events = audit.get_events()
+    print(f"   All events             : {len(all_events)}")
 
-    print("  All events for this agent:")
-    for e in events:
-        print(f"    {e['timestamp']:30s} | {e['event_type']:20s} | {e['outcome']}")
+    agent_events = audit.get_events(agent_id="agent-gpt4")
+    print(f"   agent-gpt4 events      : {len(agent_events)}")
 
-    print()
+    failures = audit.get_events(event_type="scope_denied")
+    print(f"   scope_denied events    : {len(failures)}")
 
-    # ============================================================
-    # 6. Query by Event Type
-    # ============================================================
-    print("🔍 Querying events by type (token_issued)...")
-
-    token_events = audit.get_events(event_type="token_issued")
-    print(f"  Found {len(token_events)} token_issued events\n")
-
-    # ============================================================
-    # 7. Query by Time Range
-    # ============================================================
-    print("🔍 Querying events by time range (future)...")
+    suspicious = audit.get_events(event_type="suspicious_activity")
+    print(f"   suspicious_activity    : {len(suspicious)}")
 
     future = datetime.now(timezone.utc) + timedelta(hours=1)
     future_events = audit.get_events(since=future)
-    print(f"  Events in future: {len(future_events)} (should be 0)\n")
+    print(f"   Events in future       : {len(future_events)} (should be 0)")
 
-    # ============================================================
-    # 8. Demonstrate Tamper Detection
-    # ============================================================
-    print("🚨 Demonstrating tamper detection...\n")
+    # ── Tamper detection demonstration ────────────────────────────────────
+    print(f"\n🚨 Demonstrating tamper detection...")
 
-    from agentauth.db.models import AuditLogModel
+    first = session.query(AuditLogModel).order_by(AuditLogModel.id.asc()).first()
+    original_hash = first.entry_hash
+    print(f"   Original hash  : {original_hash[:16]}...")
 
-    # Tamper with first entry
-    first_entry = (
-        session.query(AuditLogModel)
-        .order_by(AuditLogModel.id.asc())
-        .first()
-    )
-
-    original_hash = first_entry.entry_hash
-    print(f"  Original hash:  {original_hash[:16]}...")
-
-    # Simulate tampering by modifying the hash
-    first_entry.entry_hash = "tampered_hash_0000000000000000000000000000000000000000"
+    # Simulate an attacker changing the outcome of the first entry
+    first.outcome    = "success"   # Was "success" already — let's change event_type
+    first.event_type = "login"     # Changed from "agent_registered"
     session.commit()
-    print(f"  Tampered hash:  tampered_hash_00...")
-    print()
+    print(f"   Tampered field : event_type changed to 'login'")
 
-    # Try to verify chain
-    print("  Verifying chain with tampering...")
     try:
         audit.verify_chain()
-        print("  Chain status: ✅ VALID (unexpected!)\n")
+        print(f"   Detection: ⚠️  NOT detected (unexpected)")
     except AuditChainCorruptedError as e:
-        print(f"  Chain status: ❌ CORRUPTED (detected!)")
-        print(f"  Error: {e}\n")
+        print(f"   Detection: ✅ Tamper detected!")
+        print(f"   Error    : {e}")
 
-    # ============================================================
-    # Cleanup
-    # ============================================================
     session.close()
-    print("✅ Example completed successfully!")
+    print("\n✅ audit_trail complete")
 
 
 if __name__ == "__main__":

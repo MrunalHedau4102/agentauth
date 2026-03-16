@@ -1,170 +1,163 @@
 """
-Example 2: Scope Enforcement
-=============================
-Demonstrates per-action authorization with @require_scope decorator.
+Example 2 — Scope Enforcement
+===============================
+Demonstrates @require_scope, ScopeManager, and trust-level hierarchy.
+
+Run:
+    python -m examples.scope_enforcement
 """
 
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from agentauth import (
     ScopeManager,
+    EphemeralTokenVault,
     set_current_token,
     clear_current_token,
     require_scope,
-    EphemeralTokenVault,
 )
 from agentauth.db import Base
-from agentauth.exceptions import ScopeNotGrantedError, TrustLevelInsufficientError
+from agentauth.exceptions import (
+    ScopeNotGrantedError,
+    TrustLevelInsufficientError,
+    PermissionDeniedError,
+)
 
 
 def main():
-    # ============================================================
-    # 1. Setup Database
-    # ============================================================
+    # ── Setup ────────────────────────────────────────────────────────────
     engine = create_engine("sqlite:///:memory:", echo=False)
     Base.metadata.create_all(bind=engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()
 
     vault = EphemeralTokenVault(
-        secret_key="test-secret-key-min-32-chars-long-1234567890",
-        session=session
+        secret_key="my-production-secret-key-min-32-chars",
+        session=session,
     )
+    sm = ScopeManager(session)
+    print("✅ Setup complete\n")
 
-    print("✅ Database initialized\n")
+    # ── Define protected functions ────────────────────────────────────────
 
-    # ============================================================
-    # 2. Grant Scopes to an Agent
-    # ============================================================
-    print("🔑 Granting scopes to agent...")
-    
-    scope_manager = ScopeManager(session)
+    @require_scope("db:read", trust_level="low")
+    def read_users():
+        return [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
 
-    scopes_to_grant = [
-        ("database:read", "low"),
-        ("database:write", "medium"),
-        ("database:delete", "high"),
-    ]
+    @require_scope("db:write", trust_level="medium")
+    def create_user(name: str):
+        return {"id": 99, "name": name, "created": True}
 
-    for scope, trust_level in scopes_to_grant:
-        scope_manager.grant_scope(
-            "agent-1",
-            scope,
-            trust_level_required=trust_level
-        )
-        print(f"  Granted: {scope:20s} (requires: {trust_level})")
+    @require_scope("db:delete", trust_level="high")
+    def delete_user(user_id: int):
+        return {"deleted": True, "user_id": user_id}
 
-    print()
+    @require_scope("email:send", trust_level="low")
+    async def send_email(to: str, subject: str):
+        return {"sent": True, "to": to}
 
-    # ============================================================
-    # 3. Define Protected Functions
-    # ============================================================
-    print("🛡️  Defining protected functions...\n")
+    print("🛡️  Protected functions defined\n")
 
-    @require_scope("database:read", trust_level="low")
-    def read_database():
-        """Read from database (low trust required)."""
-        return "SELECT * FROM users"
+    # ── Grant scopes to test agent ────────────────────────────────────────
+    sm.grant_scope("agent-1", "db:read",    trust_level_required="low")
+    sm.grant_scope("agent-1", "db:write",   trust_level_required="medium")
+    sm.grant_scope("agent-1", "db:delete",  trust_level_required="high")
+    sm.grant_scope("agent-1", "email:send", trust_level_required="low")
+    print("🔑 Scopes granted\n")
 
-    @require_scope("database:write", trust_level="medium")
-    def write_database():
-        """Write to database (medium trust required)."""
-        return "INSERT INTO users VALUES (...)"
+    # ── Test 1: Full access with high trust token ─────────────────────────
+    print("─" * 50)
+    print("Test 1: High trust token — all operations allowed")
+    print("─" * 50)
 
-    @require_scope("database:delete", trust_level="high")
-    def delete_database():
-        """Delete from database (high trust required)."""
-        return "DELETE FROM users WHERE id = 123"
-
-    # ============================================================
-    # 4. Test: Call with sufficient permissions
-    # ============================================================
-    print("✅ Test 1: Call with sufficient scopes and trust...")
-    
     token = vault.issue(
         agent_id="agent-1",
-        scopes=["database:read", "database:write", "database:delete"],
-        trust_level="high"
+        scopes=["db:read", "db:write", "db:delete", "email:send"],
+        trust_level="high",
+        ttl_seconds=60,
     )
-
-    payload = vault.verify(token)
-    ctx_token = set_current_token(payload)
-
+    ctx = set_current_token(vault.verify(token))
     try:
-        result = read_database()
-        print(f"  read_database(): {result}")
-        
-        result = write_database()
-        print(f"  write_database(): {result}")
-        
-        result = delete_database()
-        print(f"  delete_database(): {result}")
-        print()
+        users = read_users()
+        print(f"  ✅ read_users()      → {len(users)} users")
+
+        user = create_user("Charlie")
+        print(f"  ✅ create_user()     → {user}")
+
+        result = delete_user(1)
+        print(f"  ✅ delete_user(1)    → {result}")
     finally:
-        clear_current_token(ctx_token)
+        clear_current_token(ctx)
 
-    # ============================================================
-    # 5. Test: Missing scope
-    # ============================================================
-    print("❌ Test 2: Call without required scope...")
-    
+    # ── Test 2: Read-only token blocked on write ──────────────────────────
+    print("\n" + "─" * 50)
+    print("Test 2: Low trust / read-only token — writes blocked")
+    print("─" * 50)
+
     token = vault.issue(
         agent_id="agent-1",
-        scopes=["database:read"],  # Only read scope
-        trust_level="high"
+        scopes=["db:read"],
+        trust_level="low",
+        ttl_seconds=60,
     )
-
-    payload = vault.verify(token)
-    ctx_token = set_current_token(payload)
-
+    ctx = set_current_token(vault.verify(token))
     try:
-        result = write_database()
-        print(f"  write_database(): {result}")
-    except ScopeNotGrantedError as e:
-        print(f"  ❌ ScopeNotGrantedError: {e}\n")
+        users = read_users()
+        print(f"  ✅ read_users()   → {len(users)} users")
+
+        try:
+            create_user("Dave")
+        except ScopeNotGrantedError as e:
+            print(f"  ❌ create_user()  → ScopeNotGrantedError: {e}")
+
+        try:
+            delete_user(2)
+        except ScopeNotGrantedError as e:
+            print(f"  ❌ delete_user()  → ScopeNotGrantedError: {e}")
     finally:
-        clear_current_token(ctx_token)
+        clear_current_token(ctx)
 
-    # ============================================================
-    # 6. Test: Insufficient trust level
-    # ============================================================
-    print("❌ Test 3: Call with insufficient trust level...")
-    
+    # ── Test 3: Scope present but trust level too low ─────────────────────
+    print("\n" + "─" * 50)
+    print("Test 3: Has db:delete scope but trust=medium (needs high)")
+    print("─" * 50)
+
     token = vault.issue(
         agent_id="agent-1",
-        scopes=["database:read", "database:write", "database:delete"],
-        trust_level="low"  # Only low trust
+        scopes=["db:delete"],
+        trust_level="medium",
+        ttl_seconds=60,
     )
-
-    payload = vault.verify(token)
-    ctx_token = set_current_token(payload)
-
+    ctx = set_current_token(vault.verify(token))
     try:
-        result = delete_database()
-        print(f"  delete_database(): {result}")
+        delete_user(3)
     except TrustLevelInsufficientError as e:
-        print(f"  ❌ TrustLevelInsufficientError: {e}\n")
+        print(f"  ❌ delete_user()  → TrustLevelInsufficientError: {e}")
     finally:
-        clear_current_token(ctx_token)
+        clear_current_token(ctx)
 
-    # ============================================================
-    # 7. List all scopes for an agent
-    # ============================================================
-    print("📋 Scopes granted to agent-1:\n")
-    
-    granted_scopes = scope_manager.list_scopes("agent-1")
-    for scope in granted_scopes:
-        print(f"  {scope['scope']:20s} - Trust: {scope['trust_level_required']}")
+    # ── Test 4: No token set ──────────────────────────────────────────────
+    print("\n" + "─" * 50)
+    print("Test 4: No token in context")
+    print("─" * 50)
 
-    print()
+    try:
+        read_users()
+    except PermissionDeniedError as e:
+        print(f"  ❌ read_users()   → PermissionDeniedError: {e}")
 
-    # ============================================================
-    # Cleanup
-    # ============================================================
+    # ── List granted scopes ───────────────────────────────────────────────
+    print("\n📋 All scopes for agent-1:")
+    for scope in sm.list_scopes("agent-1"):
+        print(f"   {scope['scope']:15s} (trust_required: {scope['trust_level_required']})")
+
+    # ── Revoke a scope ────────────────────────────────────────────────────
+    revoked = sm.revoke_scope("agent-1", "db:delete")
+    print(f"\n🗑️  Revoked db:delete → {revoked}")
+    print(f"   Remaining scopes: {len(sm.list_scopes('agent-1'))}")
+
     session.close()
-    print("✅ Example completed successfully!")
+    print("\n✅ scope_enforcement complete")
 
 
 if __name__ == "__main__":
