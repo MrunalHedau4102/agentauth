@@ -6,6 +6,9 @@ from typing import Optional, List, Dict, Any, Callable
 
 from sqlalchemy import func, inspect
 from sqlalchemy.orm import Session
+
+import logging
+logger = logging.getLogger("agentauth.scopes")
 from sqlalchemy.exc import SQLAlchemyError
 
 from agentauth.db.models import AgentScopeModel
@@ -121,6 +124,7 @@ class ScopeManager:
         self.session.add(scope_record)
         self.session.commit()
         self.session.refresh(scope_record)
+        logger.debug("Scope granted: agent=%s scope=%s trust_required=%s", agent_id, scope, trust_level_required)
         return scope_record.to_dict()
 
     def revoke_scope(self, agent_id: str, scope: str) -> bool:
@@ -147,6 +151,7 @@ class ScopeManager:
 
         self.session.delete(record)
         self.session.commit()
+        logger.debug("Scope revoked: agent=%s scope=%s", agent_id, scope)
         return True
 
     def list_scopes(self, agent_id: str) -> List[Dict[str, Any]]:
@@ -247,6 +252,8 @@ def require_scope(
             # Validate scope and trust level
             token_scopes = payload.get("scopes", [])
             if scope not in token_scopes:
+                logger.warning("Scope denied: required=%s token_scopes=%s agent=%s",
+                               scope, token_scopes, payload.get("agent_id"))
                 raise ScopeNotGrantedError(
                     f"Scope '{scope}' is not granted in the token"
                 )
@@ -255,11 +262,15 @@ def require_scope(
             required_level = TRUST_LEVELS.get(trust_level, 0)
             actual_level = TRUST_LEVELS.get(token_trust, 0)
             if actual_level < required_level:
+                logger.warning("Trust level insufficient: required=%s actual=%s agent=%s",
+                               trust_level, token_trust, payload.get("agent_id"))
                 raise TrustLevelInsufficientError(
                     f"Trust level '{token_trust}' is insufficient; "
                     f"'{trust_level}' required"
                 )
 
+            logger.debug("Scope check passed: scope=%s trust=%s agent=%s",
+                         scope, token_trust, payload.get("agent_id"))
             return func(*args, **kwargs)
 
         @functools.wraps(func)

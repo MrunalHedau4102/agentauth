@@ -12,6 +12,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from agentauth.db.models import AuditLogModel
 from agentauth.exceptions import AuditChainCorruptedError
 
+import logging
+logger = logging.getLogger("agentauth.audit")
+
 
 class AuditLogger:
     """
@@ -108,6 +111,8 @@ class AuditLogger:
         self.session.add(record)
         self.session.commit()
         self.session.refresh(record)
+        logger.debug("Audit event recorded: type=%s agent=%s outcome=%s hash=%s",
+                     event_type, agent_id, outcome, entry_hash[:8])
         return record.to_dict()
 
     def verify_chain(self) -> bool:
@@ -134,6 +139,7 @@ class AuditLogger:
         for entry in entries:
             # The stored previous_hash must match what we tracked
             if entry.previous_hash != previous_hash:
+                logger.critical("AUDIT CHAIN TAMPERED: previous_hash mismatch at event_id=%s", entry.event_id)
                 raise AuditChainCorruptedError(
                     f"Previous hash mismatch at event {entry.event_id}"
                 )
@@ -156,12 +162,14 @@ class AuditLogger:
             ).hexdigest()
 
             if entry.entry_hash != expected_hash:
+                logger.critical("AUDIT CHAIN TAMPERED: entry_hash mismatch at event_id=%s", entry.event_id)
                 raise AuditChainCorruptedError(
                     f"Entry hash mismatch at event {entry.event_id}"
                 )
 
             previous_hash = entry.entry_hash
 
+        logger.debug("Audit chain verified: %d entries — all intact", len(entries))
         return True
 
     def get_events(

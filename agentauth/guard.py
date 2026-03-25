@@ -7,6 +7,9 @@ from typing import Optional, List, Dict, Any
 
 from agentauth.exceptions import PromptInjectionSuspected
 
+import logging
+logger = logging.getLogger("agentauth.guard")
+
 
 # Suspicious phrases (case-insensitive matching)
 _SUSPICIOUS_PHRASES: List[str] = [
@@ -127,15 +130,20 @@ class PromptInjectionGuard:
                         "findings": findings,
                     },
                 )
-            except Exception:
-                pass  # Audit logging should never block guard operation
+            except Exception as _audit_err:
+                logger.warning("Audit logging failed during injection detection: %s", _audit_err)
 
+        if findings:
+            logger.warning("Prompt injection detected in tool=%s findings=%d rule=%s",
+                           tool_name, len(findings), findings[0].get("rule","?"))
         if findings and self.strict:
             reasons = "; ".join(f["reason"] for f in findings)
             raise PromptInjectionSuspected(
                 f"Prompt injection detected in '{tool_name}': {reasons}"
             )
 
+        if not findings:
+            logger.debug("Input clean for tool=%s", tool_name)
         return findings
 
     # ------------------------------------------------------------------
