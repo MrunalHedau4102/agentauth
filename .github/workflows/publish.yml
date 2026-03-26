@@ -26,7 +26,7 @@ jobs:
     
     - name: Check versions match
       run: |
-        VERSION=$(grep '__version__' agentauth/__init__.py | sed "s/__version__ = '\(.*\)'/\1/")
+        VERSION=$(grep -oP '__version__ = ["'\'']\K[^"'\'']+' agentauth/__init__.py)
         PYPROJECT=$(grep 'version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
         if [ "$VERSION" != "$PYPROJECT" ]; then
           echo "Version mismatch: __init__.py=$VERSION, pyproject.toml=$PYPROJECT"
