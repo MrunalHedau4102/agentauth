@@ -3,7 +3,7 @@ AgentAuth — AI agent authentication, MCP server security, and per-action
 authorization for the AuthLib ecosystem.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __author__ = "AuthLib Contributors"
 
 # Exceptions

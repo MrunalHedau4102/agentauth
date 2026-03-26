@@ -465,7 +465,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Security
 
-Found a security vulnerability? Please email security@authlib.dev with details. See [SECURITY.md](SECURITY.md) for full disclosure policy.
+Found a security vulnerability? Please email mrunalh1234@gmail.com with details. See [SECURITY.md](SECURITY.md) for full disclosure policy.
 
 ## License
 
@@ -473,24 +473,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📖 **Documentation**: [Full API docs](https://github.com/MrunalHedau4102/agent-auth/wiki)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/MrunalHedau4102/agent-auth/discussions)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/MrunalHedau4102/agent-auth/issues)
-- 📧 **Email**: support@authlib.dev
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/MrunalHedau4102/agentauth/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/MrunalHedau4102/agentauth/issues)
+- 📧 **Email**: mrunalh1234@gmail.com
 
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
-
-## Roadmap
-
-- [ ] OpenID Connect provider support
-- [ ] Multi-tenant deployment guide
-- [ ] Dashboard for agent management
-- [ ] GraphQL token mutation helpers
-- [ ] Kubernetes integration examples
-- [ ] Performance benchmarks and tuning guide
 
 ---
 
-**AgentAuth** is maintained by the [AuthLib Contributors](https://github.com/MrunalHedau4102/agent-auth/graphs/contributors).
+**AgentAuth** is maintained by the [AuthLib Contributors](https://github.com/MrunalHedau4102/agentauth/graphs/contributors).

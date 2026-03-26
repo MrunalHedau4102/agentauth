@@ -3,14 +3,14 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-auth"
+name = "agentauth"
 version = "1.0.0"
 description = "A scalable, framework-agnostic Python authentication library with JWT token management and password reset functionality"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "AuthLib Contributors", email = "info@authlib.dev"}
+    {name = "AuthLib Contributors", email = "mrunalh1234@gmail.com"}
 ]
 keywords = [
     "authentication",
@@ -68,11 +68,11 @@ psycopg = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/MrunalHedau4102/agent-auth"
-"Documentation" = "https://github.com/MrunalHedau4102/agent-auth#readme"
-"Repository" = "https://github.com/MrunalHedau4102/agent-auth.git"
-"Issues" = "https://github.com/MrunalHedau4102/agent-auth/issues"
-"Changelog" = "https://github.com/MrunalHedau4102/agent-auth/blob/main/CHANGELOG.md"
+"Homepage" = "https://github.com/MrunalHedau4102/agentauth"
+"Documentation" = "https://github.com/MrunalHedau4102/agentauth#readme"
+"Repository" = "https://github.com/MrunalHedau4102/agentauth.git"
+"Issues" = "https://github.com/MrunalHedau4102/agentauth/issues"
+"Changelog" = "https://github.com/MrunalHedau4102/agentauth/blob/main/CHANGELOG.md"
 "PyPI" = "https://pypi.org/project/authlib/"
 
 [tool.black]

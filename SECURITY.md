@@ -6,7 +6,7 @@ If you discover a security vulnerability in AgentAuth, please **do not** create 
 
 ### How to Report
 
-1. **Email**: Send a detailed report to **security@authlib.dev**
+1. **Email**: Send a detailed report to **mrunalh1234@gmail.com**
 2. **Include**:
    - Description of the vulnerability
    - Affected versions
@@ -135,7 +135,7 @@ None — this is the first production release.
 If you want to contribute a security fix:
 
 1. **Don't** create a public PR for a security vulnerability
-2. **Email** security@authlib.dev with details
+2. **Email** mrunalh1234@gmail.com with details
 3. We'll work with you confidentially
 4. You'll be credited when the fix is published
 
@@ -193,7 +193,7 @@ Security advisories are announced via:
 
 ## Contact
 
-- **Email**: security@authlib.dev
+- **Email**: mrunalh1234@gmail.com
 - **PGP Key**: [Available on request]
 - **Response Time**: 48 hours
 
