@@ -206,5 +206,5 @@ Security advisories are announced via:
 
 ---
 
-**Last Updated**: March 12, 2026
+**Last Updated**: March 26, 2026
 **Status**: Active

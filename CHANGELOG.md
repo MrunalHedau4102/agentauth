@@ -5,7 +5,7 @@ All notable changes to AgentAuth will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-03-12
+## [1.0.0] - 2026-03-26
 
 ### Added
 - **Agent Identity Management** — Register and manage AI agents with Ed25519/RSA key pairs
@@ -42,14 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code of conduct (CODE_OF_CONDUCT.md)
 - 5 runnable example scripts
 
-## [0.1.0] - Initial Alpha Release
-
-### Initial Release
-- Foundation for agent authentication framework
-- Basic structure and project setup
-- Early-stage API design
-
----
 
 ## Version History
 
@@ -98,15 +90,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] New architecture components
 - [ ] Enhanced cryptography options
 
----
-
-## Migration Guides
-
-### Upgrading from 0.1.0 to 1.0.0
-
-No migration needed — this is the first production release.
-
----
 
 ## How to Report Security Issues
 
@@ -120,4 +103,4 @@ AgentAuth is developed and maintained by the AuthLib Contributors.
 
 **Latest Version**: 1.0.0 (March 12, 2026)
 
-For more information, visit [GitHub](https://github.com/MrunalHedau4102/agent-auth)
+For more information, visit [GitHub](https://github.com/MrunalHedau4102/agentauth)
