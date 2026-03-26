@@ -89,7 +89,7 @@ from agentauth.exceptions import (
 # CONFIGURATION — edit GROK_API_KEY if not using env var
 # ═══════════════════════════════════════════════════════════════════════════════
 
-GROK_API_KEY   = os.getenv("GROK_API_KEY")      # xai-...
+GROK_API_KEY   = ""     # xai-...
 GROK_MODEL     = "grok"                               # Latest Grok model
 SECRET_KEY     = "agentauth-demo-secret-key-32chars!" # min 32 chars for HS256
 DB_URL         = "sqlite:///agentauth_demo.db"        # local SQLite database
