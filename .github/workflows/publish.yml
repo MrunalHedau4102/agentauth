@@ -26,14 +26,28 @@ jobs:
     
     - name: Check versions match
       run: |
-        VERSION=$(python -c "import re; content = open('agentauth/__init__.py').read(); match = re.search(r'__version__\s*=\s*[\"\\']([^\"\\']*)[\"\\'']', content); print(match.group(1) if match else '')")
-        PYPROJECT=$(python -c "import re; content = open('pyproject.toml').read(); match = re.search(r'version\\s*=\\s*[\"\\']([^\"\\']*)[\"\\'']', content); print(match.group(1) if match else '')")
-        echo "Checking: __init__.py=$VERSION, pyproject.toml=$PYPROJECT"
-        if [ "$VERSION" != "$PYPROJECT" ]; then
-          echo "Version mismatch: __init__.py=$VERSION, pyproject.toml=$PYPROJECT"
-          exit 1
-        fi
-        echo "✓ Versions match: $VERSION"
+        python3 << 'EOF'
+        import re
+        
+        with open('agentauth/__init__.py') as f:
+            init_content = f.read()
+            init_match = re.search(r'__version__\s*=\s*["\']([^"\']*)["\']', init_content)
+            init_version = init_match.group(1) if init_match else None
+        
+        with open('pyproject.toml') as f:
+            pyproject_content = f.read()
+            pyproject_match = re.search(r'version\s*=\s*["\']([^"\']*)["\']', pyproject_content)
+            pyproject_version = pyproject_match.group(1) if pyproject_match else None
+        
+        print(f"__init__.py: {init_version}")
+        print(f"pyproject.toml: {pyproject_version}")
+        
+        if init_version != pyproject_version:
+            print("ERROR: Versions don't match!")
+            exit(1)
+        else:
+            print(f"✓ Versions match: {init_version}")
+        EOF
 
   build-and-publish:
     needs: validate
