@@ -26,12 +26,14 @@ jobs:
     
     - name: Check versions match
       run: |
-        VERSION=$(grep -oP '__version__ = ["'\'']\K[^"'\'']+' agentauth/__init__.py)
-        PYPROJECT=$(grep 'version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        VERSION=$(python -c "import re; content = open('agentauth/__init__.py').read(); match = re.search(r'__version__\s*=\s*[\"\\']([^\"\\']*)[\"\\'']', content); print(match.group(1) if match else '')")
+        PYPROJECT=$(python -c "import re; content = open('pyproject.toml').read(); match = re.search(r'version\\s*=\\s*[\"\\']([^\"\\']*)[\"\\'']', content); print(match.group(1) if match else '')")
+        echo "Checking: __init__.py=$VERSION, pyproject.toml=$PYPROJECT"
         if [ "$VERSION" != "$PYPROJECT" ]; then
           echo "Version mismatch: __init__.py=$VERSION, pyproject.toml=$PYPROJECT"
           exit 1
         fi
+        echo "✓ Versions match: $VERSION"
 
   build-and-publish:
     needs: validate
