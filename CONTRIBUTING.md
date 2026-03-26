@@ -17,8 +17,8 @@ Please read and follow our [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) to keep our 
 
 ```bash
 # Clone the repository
-git clone https://github.com/MrunalHedau4102/agent-auth.git
-cd agent-auth
+git clone https://github.com/MrunalHedau4102/agentauth.git
+cd agentauth
 
 # Create virtual environment
 python -m venv venv

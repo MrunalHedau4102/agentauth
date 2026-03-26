@@ -60,14 +60,6 @@ jobs:
       run: |
         twine check dist/*
     
-    - name: Publish to PyPI (test)
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository-url: https://test.pypi.org/legacy/
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      if: github.event_name == 'workflow_dispatch'
-      continue-on-error: true
-    
     - name: Publish to PyPI (production)
       uses: pypa/gh-action-pypi-publish@release/v1
       with:

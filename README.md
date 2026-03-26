@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
 ![Tests](https://img.shields.io/badge/Tests-68%2F68%20Passing-brightgreen?style=for-the-badge)
 ![Coverage](https://img.shields.io/badge/Coverage-94%25-brightgreen?style=for-the-badge)
-[![PyPI](https://img.shields.io/badge/PyPI-agent--auth-blue?style=for-the-badge)](https://pypi.org/project/agentauth/)
+[![PyPI](https://img.shields.io/badge/PyPI-agentauth--agents-blue?style=for-the-badge)](https://pypi.org/project/agentauth-agents/)
 [![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen?style=for-the-badge)](#)
 
 **🚀 Ship AI Agents with Enterprise-Grade Security in Minutes**
@@ -64,27 +64,27 @@
 ### From PyPI
 
 ```bash
-pip install agent-auth
+pip install agentauth-agents
 ```
 
 ### With Framework Integrations
 
 ```bash
 # FastAPI + Uvicorn support
-pip install agent-auth[fastapi]
+pip install agentauth-agents[fastapi]
 
 # Flask support
-pip install agent-auth[flask]
+pip install agentauth-agents[flask]
 
 # PostgreSQL support
-pip install agent-auth[psycopg]
+pip install agentauth-agents[psycopg]
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/MrunalHedau4102/agent-auth.git
-cd agent-auth
+git clone https://github.com/MrunalHedau4102/agentauth.git
+cd agentauth
 pip install -e ".[dev]"
 ```
 

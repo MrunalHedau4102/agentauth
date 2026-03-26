@@ -3,7 +3,7 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentauth:agents"
+name = "agentauth-agents"
 version = "1.0.0"
 description = "A scalable, framework-agnostic Python authentication library with JWT token management and password reset functionality"
 readme = "README.md"
